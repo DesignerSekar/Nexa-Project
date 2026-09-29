@@ -1,0 +1,9 @@
+dist
+node_modules
+.nx
+coverage
+storybook-static
+playwright-report
+test-results
+pnpm-lock.yaml
+apps/nexa-portal/public/mockServiceWorker.js

@@ -1,0 +1,32 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "paths": {
+      "@nexa/contract": [
+        "../../libs/core/contract/src/index.ts"
+      ],
+      "@nexa/data": [
+        "../../libs/core/data/src/index.ts"
+      ],
+      "@nexa/auth": [
+        "../../libs/core/auth/src/index.ts"
+      ],
+      "@nexa/schemas": [
+        "../../libs/core/schemas/src/index.ts"
+      ],
+      "@nexa/tokens": [
+        "../../libs/core/tokens/src/index.ts"
+      ],
+      "@nexa/util": [
+        "../../libs/core/util/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ]
+}

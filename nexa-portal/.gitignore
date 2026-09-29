@@ -1,0 +1,46 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+storybook-static/
+
+# nx
+.nx/cache
+.nx/workspace-data
+
+# test output
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# env
+# Local overrides stay out; the committed modes carry no secrets and CI and the Playwright suite
+# need them. Nothing here may ever hold a credential: VITE_* values are public by construction,
+# since Vite inlines them into the client bundle.
+.env
+.env.*
+!.env.example
+!.env.development
+!.env.mock
+!.env.production
+
+# editor / os
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# misc
+*.tsbuildinfo
+tmp/

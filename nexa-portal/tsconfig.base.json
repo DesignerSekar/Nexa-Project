@@ -1,0 +1,42 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "verbatimModuleSyntax": false,
+    "baseUrl": ".",
+    "paths": {
+      "@nexa/contract": ["libs/core/contract/src/index.ts"],
+      "@nexa/data": ["libs/core/data/src/index.ts"],
+      "@nexa/auth": ["libs/core/auth/src/index.ts"],
+      "@nexa/schemas": ["libs/core/schemas/src/index.ts"],
+      "@nexa/tokens": ["libs/core/tokens/src/index.ts"],
+      "@nexa/util": ["libs/core/util/src/index.ts"],
+      "@nexa/platform-web": ["libs/web/platform/src/index.ts"],
+      "@nexa/theme-web": ["libs/web/theme/src/index.ts"],
+      "@nexa/shared-ui": ["libs/web/ui/src/index.ts"],
+      "@nexa/shared-ui/providers": ["libs/web/ui/src/providers/index.ts"],
+      "@nexa/shared-ui/hooks": ["libs/web/ui/src/hooks/index.ts"],
+      "@nexa/shared-ui/utils": ["libs/web/ui/src/utils/index.ts"],
+      "@nexa/shared-ui/styles.css": ["libs/web/ui/src/styles.css"],
+      "@nexa/shared-ui/*": ["libs/web/ui/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "tmp"]
+}

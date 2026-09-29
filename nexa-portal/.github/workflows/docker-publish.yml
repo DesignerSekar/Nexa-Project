@@ -1,0 +1,39 @@
+name: Build & push Docker image
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: codzofrosh/nexa-frontend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          # Same image and tag as the legacy workflow, so whatever pulls
+          # ghcr.io/codzofrosh/nexa-frontend:latest today picks up the rebuild with no deployment
+          # change. Flipping this is the Phase 9 cutover step.
+          tags: ghcr.io/codzofrosh/nexa-frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

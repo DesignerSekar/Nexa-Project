@@ -1,0 +1,23 @@
+{
+  "name": "@nexa/theme-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@nexa/tokens": "workspace:*"
+  },
+  "peerDependencies": {
+    "antd": "^6.1.4"
+  },
+  "nx": {
+    "tags": [
+      "scope:web",
+      "type:theme"
+    ]
+  }
+}

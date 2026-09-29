@@ -1,0 +1,18 @@
+/*
+ * Layer order matters: Ant Design sits between Tailwind's base and its utilities, so utilities
+ * can override component styles without `!important` and Ant Design's reset does not clobber
+ * Tailwind's. Same arrangement as ecom-v2.
+ */
+@layer theme, base, antd, components, utilities;
+
+@import 'tailwindcss';
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
