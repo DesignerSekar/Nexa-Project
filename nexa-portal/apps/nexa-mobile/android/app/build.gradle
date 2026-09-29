@@ -96,6 +96,19 @@ android {
         versionName "1.0.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
+
+        // When New Arch is re-enabled on Windows, keep object paths usable with
+        // older Ninja 1.10 (CMake 3.22). Prefer Ninja 1.12+ for long paths.
+        externalNativeBuild {
+            cmake {
+                def ninjaOverride = System.getenv("NEXA_NINJA") ?: "W:/g/ninja/ninja.exe"
+                if (new File(ninjaOverride).isFile()) {
+                    arguments "-DCMAKE_OBJECT_PATH_MAX=128", "-DCMAKE_MAKE_PROGRAM=${ninjaOverride}"
+                } else {
+                    arguments "-DCMAKE_OBJECT_PATH_MAX=128"
+                }
+            }
+        }
     }
     signingConfigs {
         debug {

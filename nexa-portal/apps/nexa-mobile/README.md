@@ -54,6 +54,20 @@ drive (e.g. `W:\g\nexa`) and runs `gradlew --stop` first — keeps Ninja under
 the 260-character path limit and avoids a second daemon holding
 `buildLogic.lock`. Override with `NEXA_GRADLE_USER_HOME` if needed.
 
+`android/app/build.gradle` also sets `-DCMAKE_OBJECT_PATH_MAX=128` so CMake
+hashes New Arch `.o` paths (needed when the repo lives under a long path
+like `Designer Bros\...`).
+
+**Current Windows workaround:** `newArchEnabled` is **false** in
+`app.json` and `android/gradle.properties` because New Arch + Ninja 1.10
+fails with `Filename longer than 260 characters` on this path. The app
+runs on the old architecture. To re-enable New Arch later:
+
+1. Open the project via short junction `W:\nx\apps\nexa-mobile\android`, or
+2. Install **CMake 3.31+** / **Ninja 1.12+**, put `ninja.exe` at
+   `W:\g\ninja\ninja.exe` (or set `NEXA_NINJA`), enable Windows long paths,
+   set `newArchEnabled=true` again, delete `android/app/.cxx`, then rebuild.
+
 ### Dev client only (Metro)
 
 ```bash

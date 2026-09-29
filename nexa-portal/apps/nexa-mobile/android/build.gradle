@@ -24,5 +24,69 @@ subprojects {
   project.layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("subprojects/${project.path.replaceAll('^:', '').replaceAll(':', '_')}"))
 }
 
+/**
+ * Remapped library build dirs (above) break New Architecture CMake: Android-autolinking.cmake
+ * hardcodes `<lib>/android/build/generated/.../jni` while Gradle writes under
+ * `android/build/subprojects/<lib>/generated/.../jni`. Rewrite those paths before configureCMake.
+ */
+def rewriteAutolinkingCmakeForRemappedBuilds = {
+  def candidates = [
+    rootProject.layout.buildDirectory.get().file("subprojects/app/generated/autolinking/src/main/jni/Android-autolinking.cmake").asFile,
+    rootProject.file("app/build/generated/autolinking/src/main/jni/Android-autolinking.cmake"),
+  ]
+  def cmakeFile = candidates.find { it != null && it.exists() }
+  if (cmakeFile == null) {
+    return
+  }
+
+  def text = cmakeFile.getText("UTF-8")
+  def original = text
+  rootProject.subprojects.each { sp ->
+    if (sp.path == ":app") {
+      return
+    }
+    def legacyBuild = new File(sp.projectDir, "build").absolutePath.replace('\\', '/')
+    def remappedBuild = sp.layout.buildDirectory.get().asFile.absolutePath.replace('\\', '/')
+    if (legacyBuild == remappedBuild) {
+      return
+    }
+    // CMake escapes spaces as "\ " in add_subdirectory paths.
+    text = text.replace(legacyBuild.replace(' ', '\\ '), remappedBuild.replace(' ', '\\ '))
+    text = text.replace(legacyBuild, remappedBuild)
+  }
+  if (text != original) {
+    cmakeFile.write(text, "UTF-8")
+    logger.lifecycle("[nexa-mobile] Rewrote Android-autolinking.cmake for remapped build directories")
+  }
+}
+
+gradle.projectsEvaluated {
+  rootProject.subprojects.each { sp ->
+    sp.tasks.configureEach { task ->
+      def name = task.name
+      if (name.startsWith("configureCMake")
+          || name.contains("generateJsonModel")
+          || name.startsWith("externalNativeBuild")) {
+        task.doFirst { rewriteAutolinkingCmakeForRemappedBuilds() }
+      }
+      if (name.toLowerCase().contains("autolinking") && name.toLowerCase().contains("newarch")) {
+        task.doLast { rewriteAutolinkingCmakeForRemappedBuilds() }
+      }
+    }
+  }
+
+  def app = rootProject.subprojects.find { it.path == ":app" }
+  if (app != null) {
+    app.tasks.matching { it.name.startsWith("configureCMake") }.configureEach { cmakeTask ->
+      rootProject.subprojects.each { p ->
+        def codegen = p.tasks.findByName("generateCodegenArtifactsFromSchema")
+        if (codegen != null) {
+          cmakeTask.dependsOn(codegen)
+        }
+      }
+    }
+  }
+}
+
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
