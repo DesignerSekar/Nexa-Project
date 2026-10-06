@@ -1,7 +1,7 @@
-import { FontAwesome } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -19,17 +19,17 @@ import {
   TextInput,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSnackbar } from '../../app/snackbar';
 import { usePalette, useThemeStore } from '../theme/theme.store';
 import { useLoginForm, type AuthTab } from './use-login-form';
 
 /** Eight bullets, matching web LoginPage password placeholders. */
 const PASSWORD_PLACEHOLDER = '\u2022'.repeat(8);
 
-/** Official-ish Google brand blue for the G mark. */
-const GOOGLE_BRAND = '#4285F4';
-/** GitHub mark — invert on dark surfaces. */
-const GITHUB_BRAND_LIGHT = '#24292F';
-const GITHUB_BRAND_DARK = '#F0F6FC';
+const GOOGLE_LOGO = require('../../../assets/auth/google-logo.jpg');
+const GITHUB_LOGO = require('../../../assets/auth/github-logo.png');
+
+type OAuthProvider = 'google' | 'github';
 
 function FieldLabel({
   label,
@@ -52,14 +52,16 @@ function FieldLabel({
 
 /**
  * Sign in / Create account — visual parity with web LoginPage + PublicLayout.
- * OAuth buttons stay disabled until deep-link Phase 3b.
+ * OAuth buttons show brand logos + spinner for now (deep-link Phase 3b later).
  */
 export function AuthScreen() {
   const palette = usePalette();
   const themeMode = useThemeStore((s) => s.themeMode);
   const toggleTheme = useThemeStore((s) => s.toggleThemeMode);
+  const snackbar = useSnackbar();
   const form = useLoginForm();
   const [showPassword, setShowPassword] = useState(false);
+  const [oauthBusy, setOauthBusy] = useState<OAuthProvider | null>(null);
 
   const isDark = themeMode === 'dark';
   const pageBg = isDark ? '#000000' : '#f5f5f5';
@@ -68,6 +70,7 @@ export function AuthScreen() {
   const labelColor = isDark ? '#fafafa' : '#262626';
   const border = isDark ? '#333333' : '#d9d9d9';
   const tabInactive = isDark ? '#a3a3a3' : '#595959';
+  const busy = form.isSubmitting || oauthBusy !== null;
 
   const submitLabel = form.isSubmitting
     ? 'Please wait\u2026'
@@ -76,6 +79,20 @@ export function AuthScreen() {
       : 'Create account';
 
   const selectTab = (tab: AuthTab) => form.selectTab(tab);
+
+  const onOAuthPress = (provider: OAuthProvider) => {
+    if (busy) return;
+    setOauthBusy(provider);
+    // Placeholder until mobile OAuth deep-link is wired.
+    setTimeout(() => {
+      setOauthBusy(null);
+      snackbar.show(
+        provider === 'google'
+          ? 'Google sign-in opens on web for now.'
+          : 'GitHub sign-in opens on web for now.',
+      );
+    }, 900);
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]}>
@@ -109,8 +126,8 @@ export function AuthScreen() {
             elevation={isDark ? 0 : 2}
           >
             <View
-              pointerEvents={form.isSubmitting ? 'none' : 'auto'}
-              style={form.isSubmitting ? styles.cardDimmed : undefined}
+              pointerEvents={busy ? 'none' : 'auto'}
+              style={busy ? styles.cardDimmed : undefined}
             >
             <View style={styles.brand}>
               <Text style={[styles.title, { color: palette.colorTextBase }]}>Nexa</Text>
@@ -258,7 +275,7 @@ export function AuthScreen() {
                 mode="contained"
                 onPress={() => void form.submit()}
                 loading={form.isSubmitting}
-                disabled={form.isSubmitting}
+                disabled={busy}
                 buttonColor={palette.colorPrimary}
                 textColor="#ffffff"
                 style={styles.submit}
@@ -278,11 +295,12 @@ export function AuthScreen() {
             <View style={styles.oauthRow}>
               <Button
                 mode="outlined"
-                onPress={() => undefined}
+                onPress={() => onOAuthPress('google')}
+                disabled={busy}
                 style={[styles.oauthBtn, { borderColor: border, backgroundColor: cardBg }]}
                 textColor={labelColor}
-                icon={({ size }) => (
-                  <FontAwesome name="google" size={size} color={GOOGLE_BRAND} />
+                icon={() => (
+                  <Image source={GOOGLE_LOGO} style={styles.oauthLogo} accessibilityIgnoresInvertColors />
                 )}
                 contentStyle={styles.oauthContent}
               >
@@ -290,15 +308,12 @@ export function AuthScreen() {
               </Button>
               <Button
                 mode="outlined"
-                onPress={() => undefined}
+                onPress={() => onOAuthPress('github')}
+                disabled={busy}
                 style={[styles.oauthBtn, { borderColor: border, backgroundColor: cardBg }]}
                 textColor={labelColor}
-                icon={({ size }) => (
-                  <FontAwesome
-                    name="github"
-                    size={size}
-                    color={isDark ? GITHUB_BRAND_DARK : GITHUB_BRAND_LIGHT}
-                  />
+                icon={() => (
+                  <Image source={GITHUB_LOGO} style={styles.oauthLogo} accessibilityIgnoresInvertColors />
                 )}
                 contentStyle={styles.oauthContent}
               >
@@ -310,13 +325,19 @@ export function AuthScreen() {
             </Text>
             </View>
 
-            {form.isSubmitting ? (
+            {busy ? (
               <View
                 style={[
                   styles.spinnerOverlay,
                   { backgroundColor: isDark ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.72)' },
                 ]}
-                accessibilityLabel="Signing in"
+                accessibilityLabel={
+                  oauthBusy === 'google'
+                    ? 'Continuing with Google'
+                    : oauthBusy === 'github'
+                      ? 'Continuing with GitHub'
+                      : 'Signing in'
+                }
                 accessibilityRole="progressbar"
               >
                 <ActivityIndicator size="large" color={palette.colorPrimary} />
@@ -432,6 +453,11 @@ const styles = StyleSheet.create({
   oauthRow: { flexDirection: 'row', gap: 10 },
   oauthBtn: { flex: 1, borderRadius: 8 },
   oauthContent: { paddingVertical: 4 },
+  oauthLogo: {
+    width: 18,
+    height: 18,
+    resizeMode: 'contain',
+  },
   oauthHint: {
     fontSize: 12,
     textAlign: 'center',

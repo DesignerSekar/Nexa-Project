@@ -67,22 +67,34 @@ function BridgeCardRow({ bridge }: { bridge: BridgeDefinition }) {
         </View>
 
         <View style={styles.cardBody}>
-          <Text style={[styles.cardTitle, { color: textColor }]}>{bridge.displayName}</Text>
-          <Text style={[styles.cardDesc, { color: muted }]}>{bridge.description}</Text>
-
-          <View style={styles.statusRow}>
-            {card.isChecking ? (
-              <>
-                <ActivityIndicator size="small" color={palette.colorPrimary} />
-                <Text style={[styles.statusLabel, { color: muted }]}>Checking…</Text>
-              </>
-            ) : (
-              <>
-                <View style={[styles.statusDot, { backgroundColor: tone.color }]} />
-                <Text style={[styles.statusLabel, { color: tone.color }]}>{tone.label}</Text>
-              </>
-            )}
+          <View style={styles.titleRow}>
+            <Text style={[styles.cardTitle, { color: textColor }]} numberOfLines={1}>
+              {bridge.displayName}
+            </Text>
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor: card.isChecking ? `${muted}22` : `${tone.color}18`,
+                },
+              ]}
+            >
+              {card.isChecking ? (
+                <>
+                  <ActivityIndicator size="small" color={palette.colorPrimary} />
+                  <Text style={[styles.statusLabel, { color: muted }]}>Checking…</Text>
+                </>
+              ) : (
+                <>
+                  <View style={[styles.statusDot, { backgroundColor: tone.color }]} />
+                  <Text style={[styles.statusLabel, { color: tone.color }]} numberOfLines={1}>
+                    {tone.label}
+                  </Text>
+                </>
+              )}
+            </View>
           </View>
+          <Text style={[styles.cardDesc, { color: muted }]}>{bridge.description}</Text>
         </View>
       </View>
 
@@ -211,21 +223,32 @@ const styles = StyleSheet.create({
     gap: 4,
     minWidth: 0,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
   cardTitle: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 22,
+    minWidth: 0,
   },
   cardDesc: {
     fontSize: 13,
     lineHeight: 18,
   },
-  statusRow: {
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 6,
-    minHeight: 20,
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    maxWidth: '52%',
+    flexShrink: 0,
   },
   statusDot: {
     width: 8,
@@ -233,8 +256,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   statusLabel: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
   },
   feedback: {
     fontSize: 13,

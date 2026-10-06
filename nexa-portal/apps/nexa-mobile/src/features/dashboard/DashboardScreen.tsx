@@ -1,11 +1,12 @@
 import type { Message } from '@nexa/contract';
-import { formatCount } from '@nexa/util';
+import { formatCount, formatTimestamp, senderHandle, truncate } from '@nexa/util';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useMemo, useRef, useState, type ComponentProps } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  RefreshControl,
   StyleSheet,
   View,
 } from 'react-native';
@@ -46,17 +47,30 @@ function classificationColors(
     case 'PROMOTION':
       return { bg: `${palette.colorWarning}22`, fg: palette.colorWarning };
     case 'SOCIAL':
-      return { bg: '#a855f722', fg: '#a855f7' };
+      return { bg: '#0d948822', fg: '#0d9488' };
     default:
       return { bg: '#94a3b822', fg: '#64748b' };
   }
+}
+
+function platformIcon(platform: string): IconName {
+  const key = platform.toLowerCase();
+  if (key.includes('whatsapp')) return 'whatsapp';
+  if (key.includes('linkedin')) return 'linkedin';
+  return 'message-text-outline';
+}
+
+function platformAccent(platform: string, fallback: string): string {
+  const key = platform.toLowerCase();
+  if (key.includes('whatsapp')) return '#25D366';
+  if (key.includes('linkedin')) return '#0A66C2';
+  return fallback;
 }
 
 function KpiCard({
   title,
   value,
   meta,
-  tone,
   icon,
   active,
   onPress,
@@ -65,11 +79,11 @@ function KpiCard({
   textColor,
   muted,
   accent,
+  wide,
 }: {
   title: string;
   value: string;
   meta: string;
-  tone: Tone;
   icon: IconName;
   active: boolean;
   onPress: () => void;
@@ -78,6 +92,7 @@ function KpiCard({
   textColor: string;
   muted: string;
   accent: string;
+  wide?: boolean;
 }) {
   return (
     <Pressable
@@ -86,6 +101,7 @@ function KpiCard({
       accessibilityState={{ selected: active }}
       style={({ pressed }) => [
         styles.kpiCard,
+        wide ? styles.kpiCardWide : styles.kpiCardHalf,
         {
           backgroundColor: cardBg,
           borderColor: active ? accent : border,
@@ -107,7 +123,7 @@ function KpiCard({
         style={[
           styles.kpiValue,
           { color: textColor },
-          tone === 'success' && value.length > 12 ? styles.kpiValueSm : null,
+          value.length > 14 ? styles.kpiValueSm : null,
         ]}
         numberOfLines={1}
       >
@@ -127,6 +143,7 @@ function BreakdownCard({
   border,
   textColor,
   muted,
+  accent,
 }: {
   title: string;
   data: Record<string, number>;
@@ -134,9 +151,12 @@ function BreakdownCard({
   border: string;
   textColor: string;
   muted: string;
+  accent: string;
 }) {
   const entries = Object.entries(data);
   if (entries.length === 0) return null;
+
+  const max = Math.max(...entries.map(([, count]) => count), 1);
 
   return (
     <View style={[styles.panel, { backgroundColor: cardBg, borderColor: border }]}>
@@ -146,13 +166,30 @@ function BreakdownCard({
           key={label}
           style={[
             styles.breakdownRow,
-            index < entries.length - 1 && { borderBottomColor: border, borderBottomWidth: StyleSheet.hairlineWidth },
+            index < entries.length - 1 && {
+              borderBottomColor: border,
+              borderBottomWidth: StyleSheet.hairlineWidth,
+            },
           ]}
         >
-          <Text style={[styles.breakdownLabel, { color: muted }]} numberOfLines={1}>
-            {label}
-          </Text>
-          <Text style={[styles.breakdownValue, { color: textColor }]}>{formatCount(count)}</Text>
+          <View style={styles.breakdownMain}>
+            <View style={styles.breakdownTop}>
+              <Text style={[styles.breakdownLabel, { color: muted }]} numberOfLines={1}>
+                {label}
+              </Text>
+              <Text style={[styles.breakdownValue, { color: textColor }]}>
+                {formatCount(count)}
+              </Text>
+            </View>
+            <View style={[styles.barTrack, { backgroundColor: `${muted}22` }]}>
+              <View
+                style={[
+                  styles.barFill,
+                  { width: `${Math.round((count / max) * 100)}%`, backgroundColor: accent },
+                ]}
+              />
+            </View>
+          </View>
         </View>
       ))}
     </View>
@@ -175,22 +212,31 @@ function MessageCard({
   palette: ReturnType<typeof usePalette>;
 }) {
   const pill = classificationColors(item.classification, palette);
+  const accent = platformAccent(item.platform, palette.colorPrimary);
 
   return (
     <View style={[styles.messageCard, { backgroundColor: cardBg, borderColor: border }]}>
       <View style={styles.messageTop}>
-        <Text style={[styles.messageSender, { color: textColor }]} numberOfLines={1}>
-          {item.sender}
-        </Text>
+        <View style={[styles.platformIcon, { backgroundColor: `${accent}18` }]}>
+          <MaterialCommunityIcons name={platformIcon(item.platform)} size={16} color={accent} />
+        </View>
+        <View style={styles.messageHeadText}>
+          <Text style={[styles.messageSender, { color: textColor }]} numberOfLines={1}>
+            {senderHandle(item.sender)}
+          </Text>
+          <Text style={[styles.messageMeta, { color: muted }]} numberOfLines={1}>
+            {item.platform}
+            {item.timestamp ? ` · ${formatTimestamp(item.timestamp)}` : ''}
+          </Text>
+        </View>
         <View style={[styles.pill, { backgroundColor: pill.bg }]}>
           <Text style={[styles.pillText, { color: pill.fg }]}>
             {item.classification ?? '—'}
           </Text>
         </View>
       </View>
-      <Text style={[styles.messageMeta, { color: muted }]}>{item.platform}</Text>
       <Text style={[styles.messageBody, { color: textColor }]} numberOfLines={3}>
-        {item.content}
+        {truncate(item.content)}
       </Text>
     </View>
   );
@@ -199,7 +245,7 @@ function MessageCard({
 export function DashboardScreen() {
   const palette = usePalette();
   const themeMode = useThemeStore((s) => s.themeMode);
-  const { stats, messages, isLoading } = useDashboard();
+  const { stats, messages, isLoading, isFetching, refetch } = useDashboard();
   const [activeFilter, setActiveFilter] = useState<DashboardFilterKey>('all');
   const listRef = useRef<FlatList<Message>>(null);
 
@@ -235,8 +281,7 @@ export function DashboardScreen() {
         <KpiCard
           title="Total messages"
           value={formatCount(stats?.total_messages)}
-          meta="Tap to show all recent messages"
-          tone="primary"
+          meta="Tap to show all"
           icon="inbox"
           active={activeFilter === 'all'}
           onPress={() => onFilter('all')}
@@ -247,10 +292,9 @@ export function DashboardScreen() {
           accent={toneColor('primary', palette)}
         />
         <KpiCard
-          title="Pending actions"
+          title="Pending"
           value={formatCount(stats?.pending_actions)}
-          meta="Needs triage or follow-up"
-          tone="warning"
+          meta="Needs triage"
           icon="alert-circle-outline"
           active={activeFilter === 'pending'}
           onPress={() => onFilter('pending')}
@@ -264,7 +308,6 @@ export function DashboardScreen() {
           title="AI classifier"
           value={stats?.classifier ?? '\u2014'}
           meta="Active classification model"
-          tone="success"
           icon="view-dashboard-outline"
           active={activeFilter === 'classifier'}
           onPress={() => onFilter('classifier')}
@@ -273,6 +316,7 @@ export function DashboardScreen() {
           textColor={textColor}
           muted={muted}
           accent={toneColor('success', palette)}
+          wide
         />
       </View>
 
@@ -285,6 +329,7 @@ export function DashboardScreen() {
             border={border}
             textColor={textColor}
             muted={muted}
+            accent={palette.colorPrimary}
           />
           <BreakdownCard
             title="Classifier breakdown"
@@ -293,12 +338,20 @@ export function DashboardScreen() {
             border={border}
             textColor={textColor}
             muted={muted}
+            accent={palette.colorSuccess}
           />
         </View>
       ) : null}
 
       <View style={styles.sectionHead}>
-        <Text style={[styles.sectionTitle, { color: textColor }]}>Recent messages</Text>
+        <View style={styles.sectionTitleRow}>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>Recent messages</Text>
+          <View style={[styles.countBadge, { backgroundColor: `${muted}22` }]}>
+            <Text style={[styles.countBadgeText, { color: muted }]}>
+              {formatCount(filtered.length)}
+            </Text>
+          </View>
+        </View>
         {activeFilter === 'pending' ? (
           <Text style={[styles.sectionExtra, { color: muted }]}>Filtered: needs attention</Text>
         ) : null}
@@ -322,10 +375,25 @@ export function DashboardScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching && !isLoading}
+            onRefresh={() => refetch()}
+            tintColor={palette.colorPrimary}
+            colors={[palette.colorPrimary]}
+          />
+        }
         ListEmptyComponent={
           emptyLabel ? (
             <View style={[styles.emptyPanel, { backgroundColor: cardBg, borderColor: border }]}>
-              <Text style={{ color: muted, fontSize: 13 }}>{emptyLabel}</Text>
+              <View style={[styles.emptyIcon, { backgroundColor: `${muted}18` }]}>
+                <MaterialCommunityIcons name="inbox-outline" size={28} color={muted} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: textColor }]}>{emptyLabel}</Text>
+              <Text style={[styles.emptyHint, { color: muted }]}>
+                Pull down to refresh when new messages arrive.
+              </Text>
             </View>
           ) : null
         }
@@ -349,25 +417,35 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: {
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 12,
     paddingBottom: 28,
     gap: 10,
   },
   stack: {
-    gap: 14,
-    marginBottom: 4,
+    gap: 12,
+    marginBottom: 2,
   },
   kpiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   kpiCard: {
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 4,
     overflow: 'hidden',
     position: 'relative',
+  },
+  kpiCardHalf: {
+    width: '48%',
+    flexGrow: 1,
+    minWidth: '46%',
+  },
+  kpiCardWide: {
+    width: '100%',
   },
   kpiAccentBar: {
     position: 'absolute',
@@ -390,22 +468,22 @@ const styles = StyleSheet.create({
   },
   kpiTitle: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
   },
   kpiValue: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '700',
-    lineHeight: 32,
+    lineHeight: 30,
     marginTop: 2,
   },
   kpiValueSm: {
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 20,
   },
   kpiMeta: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 15,
   },
   breakdownGrid: {
     gap: 10,
@@ -419,14 +497,19 @@ const styles = StyleSheet.create({
   },
   panelTitle: {
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 6,
+    fontWeight: '700',
+    marginBottom: 4,
   },
   breakdownRow: {
+    paddingVertical: 10,
+  },
+  breakdownMain: {
+    gap: 6,
+  },
+  breakdownTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
     gap: 12,
   },
   breakdownLabel: {
@@ -437,15 +520,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  barTrack: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
   sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: 8,
     marginTop: 4,
+    gap: 4,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   sectionTitle: {
     fontSize: 15,
+    fontWeight: '700',
+  },
+  countBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  countBadgeText: {
+    fontSize: 11,
     fontWeight: '600',
   },
   sectionExtra: {
@@ -454,33 +557,59 @@ const styles = StyleSheet.create({
   emptyPanel: {
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 28,
+    paddingVertical: 32,
     paddingHorizontal: 16,
     alignItems: 'center',
+    gap: 8,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  emptyTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyHint: {
+    fontSize: 12,
+    textAlign: 'center',
   },
   messageCard: {
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    gap: 4,
-    marginBottom: 2,
+    gap: 8,
   },
   messageTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
+    gap: 10,
+  },
+  platformIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messageHeadText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
   },
   messageSender: {
-    flex: 1,
     fontSize: 14,
     fontWeight: '600',
   },
   pill: {
     borderRadius: 999,
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
   },
   pillText: {
     fontSize: 11,
@@ -492,6 +621,5 @@ const styles = StyleSheet.create({
   messageBody: {
     fontSize: 13,
     lineHeight: 18,
-    marginTop: 2,
   },
 });

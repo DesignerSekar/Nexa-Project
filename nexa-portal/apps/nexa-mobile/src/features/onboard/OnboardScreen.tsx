@@ -135,7 +135,7 @@ export function OnboardScreen() {
                 disabled={busy}
                 outlineColor={border}
                 activeOutlineColor={palette.colorPrimary}
-                left={<TextInput.Icon icon="whatsapp" color={WA_GREEN} />}
+                left={<TextInput.Icon icon="account" color={palette.colorTextBase} />}
               />
 
               <Button
@@ -184,13 +184,14 @@ export function OnboardScreen() {
               </Text>
 
               <Button
-                mode="outlined"
+                mode="contained"
                 onPress={onboard.cancel}
                 disabled={busy}
-                textColor={textColor}
-                style={[styles.actionBtn, { borderColor: border }]}
+                buttonColor={palette.colorError}
+                textColor="#ffffff"
+                style={styles.actionBtn}
                 contentStyle={styles.actionBtnContent}
-                icon="close"
+                
               >
                 Cancel
               </Button>
